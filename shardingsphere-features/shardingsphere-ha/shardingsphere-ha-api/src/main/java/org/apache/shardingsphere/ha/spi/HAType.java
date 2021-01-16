@@ -21,6 +21,7 @@ import org.apache.shardingsphere.infra.config.algorithm.ShardingSphereAlgorithm;
 
 import javax.sql.DataSource;
 import java.sql.SQLException;
+import java.util.Collection;
 import java.util.Map;
 
 /**
@@ -31,8 +32,8 @@ public interface HAType extends ShardingSphereAlgorithm {
     /**
      * Check HA config.
      *
-     * @param dataSourceMap Data source map
-     * @param schemaName Schema name
+     * @param dataSourceMap data source map
+     * @param schemaName schema name
      * @throws SQLException SQL Exception
      */
     void checkHAConfig(Map<String, DataSource> dataSourceMap, String schemaName) throws SQLException;
@@ -40,16 +41,39 @@ public interface HAType extends ShardingSphereAlgorithm {
     /**
      * Update primary data source.
      *
-     * @param dataSourceMap Data source map
-     * @param schemaName Schema name
+     * @param dataSourceMap data source map
+     * @param schemaName schema name
+     * @param disabledDataSourceNames disabled data source names
+     * @param primaryDataSourceName primary data source name
+     * @param groupName group name
      */
-    void updatePrimaryDataSource(Map<String, DataSource> dataSourceMap, String schemaName);
+    void updatePrimaryDataSource(Map<String, DataSource> dataSourceMap, String schemaName, Collection<String> disabledDataSourceNames, String groupName, String primaryDataSourceName);
     
     /**
-     * Periodical monitor.
+     * Update member state.
      *
-     * @param dataSourceMap Data source map
-     * @param schemaName Schema name
+     * @param dataSourceMap data source map
+     * @param schemaName schema name
+     * @param disabledDataSourceNames disabled data source names
      */
-    void periodicalMonitor(Map<String, DataSource> dataSourceMap, String schemaName);
+    void updateMemberState(Map<String, DataSource> dataSourceMap, String schemaName, Collection<String> disabledDataSourceNames);
+    
+    /**
+     * Start periodical update.
+     *
+     * @param dataSourceMap data source map
+     * @param schemaName schema name
+     * @param disabledDataSourceNames disabled data source names
+     * @param primaryDataSourceName primary data source name
+     * @param groupName group name
+     */
+    void startPeriodicalUpdate(Map<String, DataSource> dataSourceMap, String schemaName, Collection<String> disabledDataSourceNames, String groupName, String primaryDataSourceName);
+
+    /**
+     * Get primary data source.
+     *
+     * @return primary data source
+     */
+    String getPrimaryDataSource();
+    
 }

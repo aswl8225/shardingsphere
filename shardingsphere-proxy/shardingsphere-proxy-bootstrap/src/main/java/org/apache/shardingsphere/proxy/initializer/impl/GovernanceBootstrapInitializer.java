@@ -20,6 +20,8 @@ package org.apache.shardingsphere.proxy.initializer.impl;
 import org.apache.shardingsphere.governance.context.metadata.GovernanceMetaDataContexts;
 import org.apache.shardingsphere.governance.context.transaction.GovernanceTransactionContexts;
 import org.apache.shardingsphere.governance.core.facade.GovernanceFacade;
+import org.apache.shardingsphere.governance.core.lock.strategy.GovernanceLockStrategy;
+import org.apache.shardingsphere.governance.core.scaling.ScalingServiceHolder;
 import org.apache.shardingsphere.governance.core.yaml.swapper.GovernanceConfigurationYamlSwapper;
 import org.apache.shardingsphere.infra.auth.builtin.DefaultAuthentication;
 import org.apache.shardingsphere.infra.auth.builtin.yaml.config.YamlAuthenticationConfiguration;
@@ -33,17 +35,21 @@ import org.apache.shardingsphere.infra.lock.LockContext;
 import org.apache.shardingsphere.infra.lock.LockStrategyType;
 import org.apache.shardingsphere.infra.yaml.swapper.YamlRuleConfigurationSwapperEngine;
 import org.apache.shardingsphere.proxy.config.ProxyConfiguration;
-import org.apache.shardingsphere.proxy.config.ProxyConfigurationUpdater;
 import org.apache.shardingsphere.proxy.config.YamlProxyConfiguration;
 import org.apache.shardingsphere.proxy.config.util.DataSourceParameterConverter;
 import org.apache.shardingsphere.proxy.config.yaml.YamlProxyRuleConfiguration;
 import org.apache.shardingsphere.proxy.config.yaml.YamlProxyServerConfiguration;
+import org.apache.shardingsphere.scaling.core.config.ScalingContext;
+import org.apache.shardingsphere.scaling.core.config.ServerConfiguration;
+import org.apache.shardingsphere.scaling.core.service.impl.DistributedScalingJobService;
+import org.apache.shardingsphere.scaling.core.spi.ScalingWorkerLoader;
 import org.apache.shardingsphere.transaction.context.TransactionContexts;
 
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
@@ -52,7 +58,7 @@ import java.util.stream.Collectors;
  */
 public final class GovernanceBootstrapInitializer extends AbstractBootstrapInitializer {
     
-    private final GovernanceFacade governanceFacade = ProxyConfigurationUpdater.getGovernanceFacade();
+    private final GovernanceFacade governanceFacade = new GovernanceFacade();
     
     @Override
     protected ProxyConfiguration getProxyConfiguration(final YamlProxyConfiguration yamlConfig) {
@@ -128,5 +134,18 @@ public final class GovernanceBootstrapInitializer extends AbstractBootstrapIniti
     @Override
     protected void initLockContext() {
         LockContext.init(LockStrategyType.GOVERNANCE);
+        ((GovernanceLockStrategy) LockContext.getLockStrategy()).init(governanceFacade.getRegistryCenter());
+    }
+    
+    @Override
+    protected void initScalingWorker(final YamlProxyConfiguration yamlConfig) {
+        Optional<ServerConfiguration> scalingConfigurationOptional = getScalingConfiguration(yamlConfig);
+        if (scalingConfigurationOptional.isPresent()) {
+            ServerConfiguration serverConfiguration = scalingConfigurationOptional.get();
+            serverConfiguration.setDistributedScalingService(new GovernanceConfigurationYamlSwapper().swapToObject(yamlConfig.getServerConfiguration().getGovernance()));
+            ScalingContext.getInstance().init(serverConfiguration);
+            ScalingWorkerLoader.initScalingWorker();
+            ScalingServiceHolder.getInstance().init(new DistributedScalingJobService());
+        }
     }
 }

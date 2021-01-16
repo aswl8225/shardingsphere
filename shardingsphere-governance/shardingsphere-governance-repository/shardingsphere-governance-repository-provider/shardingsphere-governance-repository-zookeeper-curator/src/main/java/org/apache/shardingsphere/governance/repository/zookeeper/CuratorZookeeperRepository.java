@@ -47,11 +47,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -61,9 +63,11 @@ public final class CuratorZookeeperRepository implements ConfigurationRepository
     
     private final Map<String, CuratorCache> caches = new HashMap<>();
     
+    private final Set<String> watchedKeys = new HashSet<>();
+    
     private CuratorFramework client;
     
-    private InterProcessLock interProcessLock;
+    private InterProcessLock lock;
     
     @Getter
     @Setter
@@ -218,34 +222,6 @@ public final class CuratorZookeeperRepository implements ConfigurationRepository
     }
     
     @Override
-    public void initLock(final String key) {
-        interProcessLock = new InterProcessMutex(client, key);
-    }
-    
-    @Override
-    public boolean tryLock(final long time, final TimeUnit unit) {
-        try {
-            return interProcessLock.acquire(time, unit);
-            // CHECKSTYLE:OFF
-        } catch (final Exception e) {
-            // CHECKSTYLE:ON
-            CuratorZookeeperExceptionHandler.handleException(e);
-            return false;
-        }
-    }
-    
-    @Override
-    public void releaseLock() {
-        try {
-            interProcessLock.release();
-            // CHECKSTYLE:OFF
-        } catch (final Exception e) {
-            // CHECKSTYLE:ON
-            CuratorZookeeperExceptionHandler.handleException(e);
-        }
-    }
-    
-    @Override
     public void delete(final String key) {
         try {
             if (isExisted(key)) {
@@ -261,6 +237,9 @@ public final class CuratorZookeeperRepository implements ConfigurationRepository
     @Override
     public void watch(final String key, final DataChangedEventListener listener) {
         String path = key + PATH_SEPARATOR;
+        if (isDuplicate(path)) {
+            return;
+        }
         if (!caches.containsKey(path)) {
             addCacheData(key);
         }
@@ -273,6 +252,14 @@ public final class CuratorZookeeperRepository implements ConfigurationRepository
                 listener.onChange(new DataChangedEvent(eventPath, null == eventDataByte ? null : new String(eventDataByte, StandardCharsets.UTF_8), changedType));
             }
         });
+    }
+    
+    private boolean isDuplicate(final String key) {
+        if (!watchedKeys.isEmpty()) {
+            return watchedKeys.stream().filter(each -> key.startsWith(each)).findFirst().isPresent();
+        }
+        watchedKeys.add(key);
+        return false;
     }
     
     private void addCacheData(final String cachePath) {
@@ -297,6 +284,34 @@ public final class CuratorZookeeperRepository implements ConfigurationRepository
                 return Type.DELETED;
             default:
                 return Type.IGNORED;
+        }
+    }
+    
+    @Override
+    public void initLock(final String key) {
+        lock = new InterProcessMutex(client, key);
+    }
+    
+    @Override
+    public boolean tryLock(final long time, final TimeUnit unit) {
+        try {
+            return lock.acquire(time, unit);
+            // CHECKSTYLE:OFF
+        } catch (final Exception ex) {
+            // CHECKSTYLE:ON
+            CuratorZookeeperExceptionHandler.handleException(ex);
+            return false;
+        }
+    }
+    
+    @Override
+    public void releaseLock() {
+        try {
+            lock.release();
+            // CHECKSTYLE:OFF
+        } catch (final Exception ex) {
+            // CHECKSTYLE:ON
+            CuratorZookeeperExceptionHandler.handleException(ex);
         }
     }
     

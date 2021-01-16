@@ -147,7 +147,8 @@ unreservedWord
     | TIMESTAMPDIFF | TLS | TRANSACTION | TRIGGERS | TRUNCATE | TYPE | TYPES | UNBOUNDED | UNCOMMITTED | UNDEFINED
     | UNDOFILE | UNDO_BUFFER_SIZE | UNICODE | UNINSTALL | UNKNOWN | UNTIL
     | UPGRADE | USER | USER_RESOURCES | USE_FRM | VALIDATION | VALUE | VARIABLES | VCPU | VIEW | VISIBLE
-    | WAIT | WARNINGS | WEEK | WEIGHT_STRING | WITHOUT | WORK | WRAPPER | X509 | XA | XID | XML | YEAR | COLUMN_NAME
+    | WAIT | WARNINGS | WEEK | WEIGHT_STRING | WITHOUT | WORK | WRAPPER | X509 | XA | XID | XML | YEAR | COLUMN_NAME 
+    | MEMBER
     ;
 
 textOrIdentifier
@@ -155,7 +156,7 @@ textOrIdentifier
     ;
 
 variable
-    : (AT_? AT_)? scope? DOT_? internalVariableName
+    : userVariable | systemVariable
     ;
 
 userVariable
@@ -163,10 +164,14 @@ userVariable
     ;
 
 systemVariable
-    : AT_ AT_ scope? textOrIdentifier (DOT_ identifier)?
+    : AT_ AT_ systemVariableScope=(GLOBAL | SESSION | LOCAL)? textOrIdentifier (DOT_ identifier)?
     ;
 
-scope
+setSystemVariable
+    : AT_ AT_ (optionType DOT_)? internalVariableName
+    ;
+
+optionType
     : GLOBAL | PERSIST | PERSIST_ONLY | SESSION | LOCAL
     ;
 
@@ -178,6 +183,23 @@ internalVariableName
 
 setExprOrDefault
     : expr | DEFAULT | ALL | ON | BINARY | ROW | SYSTEM
+    ;
+
+transactionCharacteristics
+    : transactionAccessMode (COMMA_ isolationLevel)?
+    | isolationLevel (COMMA_ transactionAccessMode)?
+    ;
+
+isolationLevel
+    : ISOLATION LEVEL isolationTypes
+    ;
+
+isolationTypes
+    : REPEATABLE READ | READ COMMITTED | READ UNCOMMITTED | SERIALIZABLE
+    ;
+
+transactionAccessMode
+    : READ (WRITE | ONLY)
     ;
 
 schemaName
