@@ -32,7 +32,7 @@ EXT_LIB=${DEPLOY_DIR}/ext-lib
 
 CLASS_PATH=.:${DEPLOY_DIR}/lib/*:${EXT_LIB}/*
 
-JAVA_OPTS=" -Djava.awt.headless=true -Djava.net.preferIPv4Stack=true "
+JAVA_OPTS=" -Djava.awt.headless=true -Djava.net.preferIPv4Stack=true -Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=3308"
 
 JAVA_MEM_OPTS=" -server -Xmx2g -Xms2g -Xmn1g -Xss256k -XX:+DisableExplicitGC -XX:+UseConcMarkSweepGC -XX:+CMSParallelRemarkEnabled -XX:LargePageSizeInBytes=128m -XX:+UseFastAccessorMethods -XX:+UseCMSInitiatingOccupancyOnly -XX:CMSInitiatingOccupancyFraction=70 "
 
@@ -54,7 +54,7 @@ echo "Starting the $SERVER_NAME ..."
 if [ $# == 1 ]; then
     MAIN_CLASS=${MAIN_CLASS}" "$1
     echo "The port is $1"
-    CLASS_PATH=../conf:${CLASS_PATH}
+    CLASS_PATH=${DEPLOY_DIR}/conf:${CLASS_PATH}
 fi
 
 if [ $# == 2 ]; then

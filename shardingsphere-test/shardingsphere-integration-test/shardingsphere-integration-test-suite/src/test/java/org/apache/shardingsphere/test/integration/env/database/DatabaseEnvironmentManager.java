@@ -20,9 +20,11 @@ package org.apache.shardingsphere.test.integration.env.database;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.apache.shardingsphere.infra.database.type.DatabaseType;
+import org.apache.shardingsphere.infra.spi.ShardingSphereServiceLoader;
+import org.apache.shardingsphere.infra.spi.typed.TypedSPIRegistry;
 import org.apache.shardingsphere.test.integration.env.EnvironmentPath;
 import org.apache.shardingsphere.test.integration.env.IntegrationTestEnvironment;
-import org.apache.shardingsphere.test.integration.env.datasource.builder.ActualDataSourceBuilder;
+import org.apache.shardingsphere.test.integration.env.database.initialization.DatabaseSQLInitialization;
 import org.h2.tools.RunScript;
 
 import javax.sql.DataSource;
@@ -34,12 +36,17 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collection;
+import java.util.Properties;
 
 /**
- * Schema environment manager.
+ * Database environment manager.
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class DatabaseEnvironmentManager {
+    
+    static {
+        ShardingSphereServiceLoader.register(DatabaseSQLInitialization.class);
+    }
     
     /**
      * Get database names.
@@ -53,9 +60,9 @@ public final class DatabaseEnvironmentManager {
         return unmarshal(EnvironmentPath.getDatabasesFile(scenario)).getDatabases();
     }
     
-    private static DatabaseEnvironment unmarshal(final String databasesFile) throws IOException, JAXBException {
+    private static DatabaseNameEnvironment unmarshal(final String databasesFile) throws IOException, JAXBException {
         try (FileReader reader = new FileReader(databasesFile)) {
-            return (DatabaseEnvironment) JAXBContext.newInstance(DatabaseEnvironment.class).createUnmarshaller().unmarshal(reader);
+            return (DatabaseNameEnvironment) JAXBContext.newInstance(DatabaseNameEnvironment.class).createUnmarshaller().unmarshal(reader);
         }
     }
     
@@ -73,30 +80,25 @@ public final class DatabaseEnvironmentManager {
     }
     
     private static void executeInitSQLs(final String scenario) throws IOException, JAXBException, SQLException {
-        for (DatabaseType each : IntegrationTestEnvironment.getInstance().getDatabaseEnvironments().keySet()) {
-            if ("H2".equals(each.getName())) {
-                executeInitSQLForSchemaNotSupportedDatabase(scenario, each);
-                return;
-            }
-            // TODO use multiple threads to improve performance
-            DataSource dataSource = ActualDataSourceBuilder.build(null, scenario, each);
-            File file = new File(EnvironmentPath.getInitSQLFile(each, scenario));
-            executeSQLScript(dataSource, file);
+        for (DatabaseType each : IntegrationTestEnvironment.getInstance().getDataSourceEnvironments().keySet()) {
+            DatabaseSQLInitialization databaseSQLInitialization = TypedSPIRegistry.getRegisteredService(DatabaseSQLInitialization.class, each.getName(), new Properties());
+            databaseSQLInitialization.executeInitSQLs(scenario, each);
         }
     }
     
-    private static void executeInitSQLForSchemaNotSupportedDatabase(final String scenario, final DatabaseType databaseType) throws IOException, JAXBException, SQLException {
-        File file = new File(EnvironmentPath.getInitSQLFile(databaseType, scenario));
-        for (String each : getDatabaseNames(scenario)) {
-            // TODO use multiple threads to improve performance
-            DataSource dataSource = ActualDataSourceBuilder.build(each, scenario, databaseType);
-            executeSQLScript(dataSource, file);
-        }
-    }
-    
-    private static void executeSQLScript(final DataSource dataSource, final File file) throws SQLException, IOException {
+    /**
+     * Execute SQL script.
+     *
+     * @param dataSource data source
+     * @param file script file
+     *
+     * @throws SQLException SQL exception
+     * @throws IOException IO exception
+     */
+    public static void executeSQLScript(final DataSource dataSource, final File file) throws SQLException, IOException {
         try (Connection connection = dataSource.getConnection();
              FileReader reader = new FileReader(file)) {
+            // TODO If you don't use H2 in the future, you need to implement this method.
             RunScript.execute(connection, reader);
         }
     }

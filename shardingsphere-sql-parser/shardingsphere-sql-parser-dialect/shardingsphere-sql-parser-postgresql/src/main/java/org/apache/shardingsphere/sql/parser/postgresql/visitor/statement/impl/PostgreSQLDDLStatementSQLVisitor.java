@@ -97,11 +97,11 @@ import java.util.Properties;
  */
 @NoArgsConstructor
 public final class PostgreSQLDDLStatementSQLVisitor extends PostgreSQLStatementSQLVisitor implements DDLSQLVisitor, SQLStatementVisitor {
-
+    
     public PostgreSQLDDLStatementSQLVisitor(final Properties props) {
         super(props);
     }
-
+    
     @SuppressWarnings("unchecked")
     @Override
     public ASTNode visitCreateTable(final CreateTableContext ctx) {
@@ -253,6 +253,7 @@ public final class PostgreSQLDDLStatementSQLVisitor extends PostgreSQLStatementS
     public ASTNode visitDropTable(final DropTableContext ctx) {
         PostgreSQLDropTableStatement result = new PostgreSQLDropTableStatement();
         result.getTables().addAll(((CollectionValue<SimpleTableSegment>) visit(ctx.tableNames())).getValue());
+        result.setContainsIfExistClause(null != ctx.tableExistClause());
         return result;
     }
     

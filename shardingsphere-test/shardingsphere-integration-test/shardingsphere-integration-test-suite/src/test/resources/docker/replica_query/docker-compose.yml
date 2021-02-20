@@ -21,9 +21,9 @@ services:
   mysql:
     image: "mysql/mysql-server:5.7"
     container_name: replica-query-mysql
-    command: --default-authentication-plugin=mysql_native_password
+    command: ['--sql_mode=', '--default-authentication-plugin=mysql_native_password']
     volumes:
-      - ../../env/replica_query/mysql:/docker-entrypoint-initdb.d/
+      - ../../env/replica_query/init-sql/mysql:/docker-entrypoint-initdb.d/
     ports:
       - "33260:3306"
     environment:
@@ -33,13 +33,14 @@ services:
 #    image: "zookeeper:3.6.2"
 #    container_name: replica-query-register-center
 #    ports:
-#      - "2181:23810"
+#      - "22810:2181"
   
   shardingsphere-proxy:
     image: apache/shardingsphere-proxy-test
     container_name: replica-query-shardingsphere-proxy
     ports:
       - "33270:3307"
+      - "33280:3308"
     links:
       - "mysql:mysql.replica-query.host"
 #      - "zookeeper:zk"

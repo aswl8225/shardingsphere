@@ -115,10 +115,18 @@ objectName
     : (owner DOT_)? name
     ;
 
+clusterName
+    : (owner DOT_)? name
+    ;
+
 indexName
     : identifier
     ;
 
+savepointName
+    : identifier
+    ;
+    
 owner
     : identifier
     ;

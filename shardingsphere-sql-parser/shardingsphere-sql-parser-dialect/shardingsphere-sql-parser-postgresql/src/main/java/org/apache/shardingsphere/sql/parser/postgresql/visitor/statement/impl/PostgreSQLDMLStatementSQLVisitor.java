@@ -122,11 +122,11 @@ import java.util.Properties;
  */
 @NoArgsConstructor
 public final class PostgreSQLDMLStatementSQLVisitor extends PostgreSQLStatementSQLVisitor implements DMLSQLVisitor, SQLStatementVisitor {
-
+    
     public PostgreSQLDMLStatementSQLVisitor(final Properties props) {
         super(props);
     }
-
+    
     @Override
     public ASTNode visitInsert(final InsertContext ctx) {
         // TODO :FIXME, since there is no segment for insertValuesClause, InsertStatement is created by sub rule.
@@ -476,7 +476,7 @@ public final class PostgreSQLDMLStatementSQLVisitor extends PostgreSQLStatementS
             result.setRight((TableSegment) visit(ctx.tableReference()));
             return result;
         }
-        return (TableSegment) visit(ctx.tableReference());
+        return visit(ctx.tableReference());
     }
     
     @Override

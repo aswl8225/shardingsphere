@@ -18,7 +18,7 @@
 package org.apache.shardingsphere.proxy.backend.text.distsql.rdl.impl;
 
 import org.apache.shardingsphere.distsql.parser.statement.rdl.create.impl.CreateReplicaQueryRuleStatement;
-import org.apache.shardingsphere.governance.core.event.model.rule.RuleConfigurationsPersistEvent;
+import org.apache.shardingsphere.governance.core.event.model.rule.RuleConfigurationsAlteredEvent;
 import org.apache.shardingsphere.infra.config.RuleConfiguration;
 import org.apache.shardingsphere.infra.eventbus.ShardingSphereEventBus;
 import org.apache.shardingsphere.infra.yaml.swapper.YamlRuleConfigurationSwapperEngine;
@@ -39,11 +39,11 @@ import java.util.Collections;
  * Create replica query rule backend handler.
  */
 public final class CreateReplicaQueryRuleBackendHandler extends SchemaRequiredBackendHandler<CreateReplicaQueryRuleStatement> {
-
+    
     public CreateReplicaQueryRuleBackendHandler(final CreateReplicaQueryRuleStatement sqlStatement, final BackendConnection backendConnection) {
         super(sqlStatement, backendConnection);
     }
-
+    
     @Override
     public ResponseHeader execute(final String schemaName, final CreateReplicaQueryRuleStatement sqlStatement) {
         check(schemaName);
@@ -54,12 +54,12 @@ public final class CreateReplicaQueryRuleBackendHandler extends SchemaRequiredBa
     }
     
     private void check(final String schemaName) {
-        if (ProxyContext.getInstance().getMetaData(schemaName).getRuleMetaData().getConfigurations().stream().filter(each -> each instanceof ReplicaQueryRuleConfiguration).findFirst().isPresent()) {
+        if (ProxyContext.getInstance().getMetaData(schemaName).getRuleMetaData().getConfigurations().stream().anyMatch(each -> each instanceof ReplicaQueryRuleConfiguration)) {
             throw new ReplicaQueryRuleCreateExistsException();
         }
     }
     
     private void post(final String schemaName, final Collection<RuleConfiguration> rules) {
-        ShardingSphereEventBus.getInstance().post(new RuleConfigurationsPersistEvent(schemaName, rules));
+        ShardingSphereEventBus.getInstance().post(new RuleConfigurationsAlteredEvent(schemaName, rules));
     }
 }

@@ -127,12 +127,16 @@ public final class BatchPreparedStatementExecutor {
                 return statement.executeBatch();
             }
             
+            @SuppressWarnings("OptionalContainsCollection")
             @Override
-            protected int[] getSaneResult(final SQLStatement sqlStatement) {
-                return new int[batchCount];
+            protected Optional<int[]> getSaneResult(final SQLStatement sqlStatement) {
+                return Optional.of(new int[batchCount]);
             }
         };
         List<int[]> results = jdbcExecutor.execute(executionGroups, callback);
+        if (results.isEmpty()) {
+            return new int[0];
+        }
         return isNeedAccumulate(
                 metaDataContexts.getDefaultMetaData().getRuleMetaData().getRules().stream().filter(rule -> rule instanceof DataNodeContainedRule).collect(Collectors.toList()), sqlStatementContext)
                 ? accumulate(results) : results.get(0);

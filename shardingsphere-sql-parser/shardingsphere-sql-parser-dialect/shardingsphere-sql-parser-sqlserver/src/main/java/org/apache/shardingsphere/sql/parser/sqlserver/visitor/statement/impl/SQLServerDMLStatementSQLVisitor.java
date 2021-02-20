@@ -127,11 +127,11 @@ import java.util.Properties;
  */
 @NoArgsConstructor
 public final class SQLServerDMLStatementSQLVisitor extends SQLServerStatementSQLVisitor implements DMLSQLVisitor, SQLStatementVisitor {
-
+    
     public SQLServerDMLStatementSQLVisitor(final Properties props) {
         super(props);
     }
-
+    
     @Override
     public ASTNode visitInsert(final InsertContext ctx) {
         SQLServerInsertStatement result;
@@ -257,6 +257,9 @@ public final class SQLServerDMLStatementSQLVisitor extends SQLServerStatementSQL
     @Override
     public ASTNode visitUpdate(final UpdateContext ctx) {
         SQLServerUpdateStatement result = new SQLServerUpdateStatement();
+        if (null != ctx.withClause()) {
+            result.setWithSegment((WithSegment) visit(ctx.withClause()));
+        }
         result.setTableSegment((TableSegment) visit(ctx.tableReferences()));
         result.setSetAssignment((SetAssignmentSegment) visit(ctx.setAssignmentsClause()));
         if (null != ctx.whereClause()) {

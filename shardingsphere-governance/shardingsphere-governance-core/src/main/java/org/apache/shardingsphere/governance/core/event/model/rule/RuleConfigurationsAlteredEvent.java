@@ -19,6 +19,9 @@ package org.apache.shardingsphere.governance.core.event.model.rule;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.apache.shardingsphere.infra.config.RuleConfiguration;
+
+import java.util.Collection;
 
 /**
  * Rule configurations altered event.
@@ -29,11 +32,5 @@ public final class RuleConfigurationsAlteredEvent {
     
     private final String schemaName;
     
-    private final String yamlDataSourceContent;
-    
-    private final String yamlRuleConfigurationsContent;
-    
-    private final String cachedYamlRuleConfigurationsContent;
-    
-    private final String ruleConfigurationCacheId;
+    private final Collection<RuleConfiguration> ruleConfigurations;
 }

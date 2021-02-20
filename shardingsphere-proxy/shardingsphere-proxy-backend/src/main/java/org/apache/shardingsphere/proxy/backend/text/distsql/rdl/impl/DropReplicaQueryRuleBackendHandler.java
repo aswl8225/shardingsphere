@@ -18,7 +18,7 @@
 package org.apache.shardingsphere.proxy.backend.text.distsql.rdl.impl;
 
 import org.apache.shardingsphere.distsql.parser.statement.rdl.drop.impl.DropReplicaQueryRuleStatement;
-import org.apache.shardingsphere.governance.core.event.model.rule.RuleConfigurationsPersistEvent;
+import org.apache.shardingsphere.governance.core.event.model.rule.RuleConfigurationsAlteredEvent;
 import org.apache.shardingsphere.infra.config.RuleConfiguration;
 import org.apache.shardingsphere.infra.eventbus.ShardingSphereEventBus;
 import org.apache.shardingsphere.infra.yaml.swapper.YamlRuleConfigurationSwapperEngine;
@@ -30,6 +30,7 @@ import org.apache.shardingsphere.proxy.backend.response.header.ResponseHeader;
 import org.apache.shardingsphere.proxy.backend.response.header.update.UpdateResponseHeader;
 import org.apache.shardingsphere.proxy.backend.text.SchemaRequiredBackendHandler;
 import org.apache.shardingsphere.replicaquery.api.config.ReplicaQueryRuleConfiguration;
+import org.apache.shardingsphere.replicaquery.api.config.rule.ReplicaQueryDataSourceRuleConfiguration;
 import org.apache.shardingsphere.replicaquery.yaml.config.YamlReplicaQueryRuleConfiguration;
 
 import java.util.Collection;
@@ -49,41 +50,42 @@ public final class DropReplicaQueryRuleBackendHandler extends SchemaRequiredBack
     @Override
     public ResponseHeader execute(final String schemaName, final DropReplicaQueryRuleStatement sqlStatement) {
         Collection<String> ruleNames = sqlStatement.getRuleNames();
-        check(schemaName, ruleNames);
-        Collection<RuleConfiguration> rules = drop(schemaName, ruleNames);
-        post(schemaName, rules);
-        return new UpdateResponseHeader(sqlStatement);
-    }
-    
-    private void check(final String schemaName, final Collection<String> ruleNames) {
         Optional<ReplicaQueryRuleConfiguration> replicaQueryRuleConfig = ProxyContext.getInstance().getMetaData(schemaName).getRuleMetaData().getConfigurations().stream()
                 .filter(each -> each instanceof ReplicaQueryRuleConfiguration).map(each -> (ReplicaQueryRuleConfiguration) each).findFirst();
         if (!replicaQueryRuleConfig.isPresent()) {
             throw new ReplicaQueryRuleNotExistedException();
         }
-        Collection<String> replicaQueryNames = replicaQueryRuleConfig.get().getDataSources().stream().map(each -> each.getName()).collect(Collectors.toList());
+        check(replicaQueryRuleConfig.get(), ruleNames);
+        Optional<YamlReplicaQueryRuleConfiguration> yamlConfig = new YamlRuleConfigurationSwapperEngine().swapToYamlRuleConfigurations(Collections.singletonList(replicaQueryRuleConfig.get())).stream()
+                .map(each -> (YamlReplicaQueryRuleConfiguration) each).findFirst();
+        if (!yamlConfig.isPresent()) {
+            throw new ReplicaQueryRuleNotExistedException();
+        }
+        Collection<RuleConfiguration> rules = drop(yamlConfig.get(), ruleNames);
+        post(schemaName, rules);
+        return new UpdateResponseHeader(sqlStatement);
+    }
+    
+    private void check(final ReplicaQueryRuleConfiguration replicaQueryRuleConfig, final Collection<String> ruleNames) {
+        Collection<String> replicaQueryNames = replicaQueryRuleConfig.getDataSources().stream().map(ReplicaQueryDataSourceRuleConfiguration::getName).collect(Collectors.toList());
         Collection<String> notExistedRuleNames = ruleNames.stream().filter(each -> !replicaQueryNames.contains(each)).collect(Collectors.toList());
         if (!notExistedRuleNames.isEmpty()) {
             throw new ReplicaQueryRuleDataSourcesNotExistedException(notExistedRuleNames);
         }
     }
 
-    private Collection<RuleConfiguration> drop(final String schemaName, final Collection<String> ruleNames) {
-        Collection<RuleConfiguration> replicaQueryRuleConfig = ProxyContext.getInstance().getMetaData(schemaName).getRuleMetaData().getConfigurations().stream()
-                .filter(each -> each instanceof ReplicaQueryRuleConfiguration).map(each -> (ReplicaQueryRuleConfiguration) each).collect(Collectors.toList());
-        YamlReplicaQueryRuleConfiguration yamlConfig = (YamlReplicaQueryRuleConfiguration) new YamlRuleConfigurationSwapperEngine().swapToYamlConfigurations(replicaQueryRuleConfig).stream()
-                .findFirst().get();
+    private Collection<RuleConfiguration> drop(final YamlReplicaQueryRuleConfiguration yamlConfig, final Collection<String> ruleNames) {
         for (String each : ruleNames) {
             yamlConfig.getDataSources().remove(each);
         }
         if (yamlConfig.getDataSources().isEmpty()) {
-            return new YamlRuleConfigurationSwapperEngine().swapToRuleConfigurations(Collections.EMPTY_LIST);
+            return new YamlRuleConfigurationSwapperEngine().swapToRuleConfigurations(Collections.emptyList());
         } else {
             return new YamlRuleConfigurationSwapperEngine().swapToRuleConfigurations(Collections.singleton(yamlConfig));
         }
     }
     
     private void post(final String schemaName, final Collection<RuleConfiguration> rules) {
-        ShardingSphereEventBus.getInstance().post(new RuleConfigurationsPersistEvent(schemaName, rules));
+        ShardingSphereEventBus.getInstance().post(new RuleConfigurationsAlteredEvent(schemaName, rules));
     }
 }

@@ -223,7 +223,8 @@
         <assertion parameters="1000:int, 11:int" expected-data-file="select_or_with_different_sharding_columns.xml" />
     </test-case>
     
-    <test-case sql="SELECT * FROM t_order WHERE order_id = ? OR status = ?">
+    <!-- TODO FIXED ME PostgreSQL default order by collate -->
+    <test-case sql="SELECT * FROM t_order WHERE order_id = ? OR status = ?" db-types="H2,MySQL,Oracle,SQLServer">
         <assertion parameters="1000:int, init:String" expected-data-file="select_or_with_none_sharding_columns.xml" />
     </test-case>
     
@@ -476,5 +477,13 @@
     <test-case sql="select t.*,o.item_id as item_id,(case when t.status = 'init' then '已启用' when t.status = 'failed' then '已停用' end) as stateName
     from t_order t left join t_order_item as o on o.order_id =t.order_id where t.order_id=1000 limit 1" db-types="MySQL,H2">
         <assertion expected-data-file="select_with_case_expression.xml" />
+    </test-case>
+
+    <test-case sql="SELECT * FROM t_order o LEFT JOIN t_order_item m ON o.order_id = m.order_id" db-types="MySQL,H2">
+        <assertion expected-data-file="select_for_left_join.xml"/>
+    </test-case>
+
+    <test-case sql="SELECT * FROM t_broadcast_table">
+        <assertion expected-data-file="select_for_broadcast_table.xml"/>
     </test-case>
 </integration-test-cases>
